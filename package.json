@@ -1,0 +1,13 @@
+{
+  "name": "instacks-elk-logger",
+  "version": "1.0.0",
+  "description": "Poll Instacks API and push metrics to Elasticsearch",
+  "main": "metrics-logger.js",
+  "scripts": {
+    "start": "node metrics-logger.js"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.13.0",
+    "axios": "^1.6.0"
+  }
+}
