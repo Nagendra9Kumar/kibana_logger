@@ -5,9 +5,9 @@ services:
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
-      - xpack.security.enabled=true                          # ← ENABLE security
-      - xpack.security.http.ssl.enabled=false                # ← keep HTTP (no TLS inside Docker)
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}                 # ← from .env
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     ulimits:
       memlock:
         soft: -1
@@ -17,40 +17,56 @@ services:
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health | grep -q 'yellow\\|green'"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.1
+    container_name: setup
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: on-failure
+    command: >
+      bash -c 'until curl -s -u elastic:${ELASTIC_PASSWORD} -X POST
+      http://elasticsearch:9200/_security/user/kibana_system/_password
+      -H "Content-Type: application/json"
+      -d "{\"password\":\"${KIBANA_SYSTEM_PASSWORD}\"}"
+      | grep -q "^{}"; do echo "Retrying..."; sleep 5; done; echo "kibana_system password set!"'
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_SYSTEM_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.1
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=kibana_system              # ← built-in Kibana user
-      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD} # ← from .env
-      - SERVER_PUBLICBASEURL=${KIBANA_PUBLIC_URL}        # ← your domain
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+      - SERVER_PUBLICBASEURL=${KIBANA_PUBLIC_URL}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
     depends_on:
-      elasticsearch:
-        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
     ports:
       - "5601:5601"
 
   node-exporter:
-    build: .
+    build:
+      context: .
+      no_cache: true
     container_name: node-exporter
     depends_on:
       elasticsearch:
         condition: service_healthy
-    environment:
-      - ES_NODE=http://elasticsearch:9200
-      - ES_USERNAME=elastic                              # ← add auth
-      - ES_PASSWORD=${ELASTIC_PASSWORD}
-      - API_URL=${API_URL}
+    env_file:
+      - .env
     restart: unless-stopped
 
 volumes:
