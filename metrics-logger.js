@@ -13,8 +13,8 @@ const INTERVAL = 30000;
 const client = new Client({
   node: ES_NODE,
   auth: {
-    username: process.env.ES_USERNAME || "elastic",
-    password: process.env.ES_PASSWORD || "",
+    username: "elastic",
+    password: process.env.ELASTIC_PASSWORD || "",
   },
 });
 
