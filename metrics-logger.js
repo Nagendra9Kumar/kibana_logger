@@ -10,7 +10,13 @@ const INDEX = "instacks-metrics";
 const INTERVAL = 30000;
 
 // Elasticsearch client
-const client = new Client({ node: ES_NODE });
+const client = new Client({
+  node: ES_NODE,
+  auth: {
+    username: process.env.ES_USERNAME || "elastic",
+    password: process.env.ES_PASSWORD || "",
+  },
+});
 
 // Transform API response → structured metrics
 function transform(data) {

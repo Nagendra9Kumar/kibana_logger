@@ -1,4 +1,3 @@
-
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.1
@@ -6,7 +5,9 @@ services:
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true                          # ← ENABLE security
+      - xpack.security.http.ssl.enabled=false                # ← keep HTTP (no TLS inside Docker)
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}                 # ← from .env
     ulimits:
       memlock:
         soft: -1
@@ -16,7 +17,7 @@ services:
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -27,8 +28,15 @@ services:
     container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system              # ← built-in Kibana user
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD} # ← from .env
+      - SERVER_PUBLICBASEURL=${KIBANA_PUBLIC_URL}        # ← your domain
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
     ports:
       - "5601:5601"
 
@@ -40,7 +48,9 @@ services:
         condition: service_healthy
     environment:
       - ES_NODE=http://elasticsearch:9200
-      - API_URL=https://instacks.co/api/v1/coding-execution-activity
+      - ES_USERNAME=elastic                              # ← add auth
+      - ES_PASSWORD=${ELASTIC_PASSWORD}
+      - API_URL=${API_URL}
     restart: unless-stopped
 
 volumes:
