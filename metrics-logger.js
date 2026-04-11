@@ -22,12 +22,12 @@ const client = new Client({
 function transform(data) {
   return {
     "@timestamp": new Date().toISOString(),
-
     service: "instacks",
     type: "code-execution",
-
-    rt_tests: data?.RT_TESTS ?? 0,
-    rt_practice: data?.RT_PRACTICE ?? 0,
+    tests: data?.RT_TESTS ?? 0,
+    practice: data?.RT_PRACTICE ?? 0,
+    max_tests: data?.MAX_RT_TESTS ?? 0,
+    max_practice: data?.PRACTICE_MAX_LIVE_TESTS ?? 0
   };
 }
 
@@ -43,8 +43,10 @@ async function ensureIndex() {
           "@timestamp": { type: "date" },
           service: { type: "keyword" },
           type: { type: "keyword" },
-          rt_tests: { type: "integer" },
-          rt_practice: { type: "integer" },
+          tests: { type: "integer" },
+          practice: { type: "integer" },
+          max_tests: { type: "integer" },
+          max_practice: { type: "integer" },
         },
       },
     });
@@ -66,7 +68,7 @@ async function fetchAndPush() {
     });
 
     console.log(
-      `✅ Indexed @ ${doc["@timestamp"]} | tests=${doc.rt_tests}, practice=${doc.rt_practice}`
+      `✅ Indexed @ ${doc["@timestamp"]} | tests=${doc.tests}, practice=${doc.practice}`
     );
   } catch (err) {
     console.error("❌ Error:", err.message);
